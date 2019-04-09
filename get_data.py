@@ -29,7 +29,7 @@ class CityAQIRecord:
         aq_keys = ['AQI', 'quality', 'PM2.5Hour', 'PM10Hour']
         self.air_quality = {key: raw_record[key] for key in aq_keys if (raw_record.get(key) is not None)}
 
-        dtls_keys = ['lat', 'long']
+        dtls_keys = ['lat', 'lon']
         self.details = {key: raw_record[key] for key in dtls_keys if (raw_record.get(key) is not None)}
 
         keys = ['city', 'date'] + aq_keys + dtls_keys
@@ -95,7 +95,7 @@ def request_city_aqi(city, appkey):
                 return 'Successful', res['result'][0]
             else:
                 # print('%s:%s' % (res['error_code'], res['reason']))
-                return (res['error_code'] + ':' + res['reason']), None                      #
+                return (str(res['error_code']) + ':' + res['reason']), None                      #
         else:
             return 'Request API error.', None
 
