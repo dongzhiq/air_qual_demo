@@ -1,11 +1,12 @@
-from tkinter import *
 import tkinter.messagebox as messagebox
+from tkinter import *
 from tkinter.ttk import *
+
 from get_data import *
 
 top_window = Tk()
 top_window.title('Get Chinese city AQIs')
-top_window.geometry('265x230')
+top_window.geometry('265x240')
 
 
 def clicked_request_btn():
@@ -13,7 +14,7 @@ def clicked_request_btn():
     result = CityAQI(request.widgets['cn_ent'].get())
     if result.error_description != 'Successful':
         messagebox.showinfo('Error', result.error_description)
-    update_record()
+    update_record()         # if error, update using a blank record.
 
 
 def update_record():
@@ -38,10 +39,11 @@ class ContentFrame(Frame):
 
     def __init__(self, master, **grid_para):
         # use grid_para to position self in master
-        # use disp_record to tell which records this frame should display
         Frame.__init__(self, master)
         self.grid(**grid_para)
+        # use widgets to store things contained in this ContentFrame
         self.widgets = {}
+        # use disp_record to tell which records this frame should display
         self.disp_records = None
 
     def add_widget(self, wid_name_type, grid_para, spec_para):
@@ -50,11 +52,15 @@ class ContentFrame(Frame):
         # self.widgets is a dictionary with items like wid_name: wid_obj
         for (w_name, w_type), grid, spec in zip(wid_name_type, grid_para, spec_para):
             if w_type in {'Label', 'StaticLabel', 'DispLabel'}:
-                if w_type == 'DispLabel':
-                    disp_attr_key = spec['disp']
-                    del spec['disp']
+                # if the label is a DispLabel, used for displaying some content (which is changeable),
+                # then its spec must contain the key 'disp'.
+                # disp_attr_key is supposed to be a list, disp_attr_key[0] is an attribute of an object o,
+                # this attribute of o is supposed to be a a dict, the rest elements of disp_attr_key being keys of it,
+                # and the corresponding values are to be displayed in this DispLabel.
+                disp_attr_key = spec.pop('disp')
                 self.widgets[w_name] = Label(self, **spec)
                 if w_type == 'DispLabel':
+                    # tell this DispLabel what to display
                     self.widgets[w_name].disp_attr_key = disp_attr_key
             elif w_type == 'Entry':
                 self.widgets[w_name] = Entry(self, **spec)
@@ -64,9 +70,13 @@ class ContentFrame(Frame):
                 spec_combo = {key: spec.get(key) for key in {'width', 'state'} if spec.get(key) is not None}
                 combo_obj = Combobox(self, **spec_combo)
                 self.widgets[w_name] = combo_obj
-                combo_obj.default = (spec.get('default_txt'), )     # When default text was not set, set it to None.
-                combo_obj['values'] = combo_obj.default
+                # When default text was not given, the text is 'None'.
+                # Add an attribute 'default' to combo_obj to save 'default_txt',
+                # since the same text keeps when other options of this combo changes.
+                combo_obj.default = (spec.get('default_txt'), )
+                combo_obj['values'] = combo_obj.default             # Actually set the option list.
                 combo_obj.current(0)                                # Set the item to be default text.
+                # When combobox is selected, take an action
                 combo_obj.bind('<<ComboboxSelected>>', spec['sel_action'])
             else:
                 print(w_type + ': ' + 'No such widget type.')
@@ -88,15 +98,21 @@ class ContentFrame(Frame):
                 self.update_disp_label(key, record)
 
     def config_combo_list(self, combo_name, record_dict=None):
+        # if record_dict is None, dic = self.disp_records; otherwise dic = record_dict
         dic = {None: self.disp_records}.get(record_dict, record_dict)
         combo = self.widgets[combo_name]
-        combo['values'] = combo.default + tuple(dic)
-        combo.current(0)
+        combo['values'] = combo.default + tuple(dic)    # set the option list of the combobox
+        combo.current(0)                                # reset the current option to the default one
 
     def select_combo_record(self, combo_name, record_dict=None):
         dic = {None: self.disp_records}.get(record_dict, record_dict)
         combo = self.widgets[combo_name]
         index = combo.current()
+        # combo['values'][index] is supposed to be a key of dic, which is a dict of record objects.
+        # when this key exists in dic, use its value to update DispLabels,
+        # otherwise use None to set them blank;
+        # especially, when index == 0, combo['values'][index] is combo.default, which is not (in general)
+        # a key in dic, therefore the labels are reset blank.
         self.update_all_displbl(dic.get(combo['values'][index], None))
 
 
@@ -128,6 +144,7 @@ grid_para = [dict(column=0, row=0, sticky=W), dict(column=1, row=0, sticky=N, pa
 spec_para = [dict(text='  Detailed records:'),
              dict(width=18, state='readonly', default_txt='Pick a monitor site',
                   sel_action=lambda event: details.select_combo_record('site_combo')),
+             # event in the above lambda expr is a redundant parameter; in general the event is something like '<<ComboboxSelected>>'
              dict(text='AQI:'), dict(text='PM2.5:'), dict(text='PM10:'),
              dict(width=15, disp=['air_quality', 'quality', 'AQI']), dict(width=15, disp=['air_quality', 'PM2.5Hour']),
              dict(width=15, disp=['air_quality', 'PM10Hour'])]

@@ -11,15 +11,19 @@ class CityAQIRecord:
     def __init__(self, raw_record=None, main_city_name=None):
 
         if not raw_record:
+            # Then create a null record.
             self.city_name = {}
             self.date_time = {}
             self.air_quality = {}
             self.details = {}
             return
 
-        # Always assume raw_record is a normal record.
+        # Always assume raw_record is a normal record, which contains the key 'city' and 'date', at least
+        # (so no error check and adopted direct reference for these two keys).
         cn_vals = [main_city_name, raw_record['city']]
-        if None in cn_vals:
+        if main_city_name is None:
+            # When main_city_name is not given, raw_record['city'] is the name of the city;
+            # otherwise raw_record['city'] is the name of the monitor site, attached to a specific city.
             cn_vals.remove(None)
         self.city_name = {key: val for key, val in zip(['cn', 'detail'], cn_vals)}
 
@@ -47,7 +51,7 @@ class CityAQI:
         self.update(c_n)
 
     def update(self, c_n):
-        # It is sure that c_n is a str object; check if c_n (city name) is blank.
+        # It is sure that c_n is a str object (obtained from a tkinter.Entry); check if c_n (city name) is blank.
         # It is okay for the API request to have a blank city_name; however it would save some counts by checking this.
         if not c_n.strip():
             self.error_description = 'City name should not be blank.'
@@ -64,10 +68,12 @@ class CityAQI:
         self.latest_rec = CityAQIRecord(data_tmp)
 
         data_tmp = data['lastTwoWeeks']
+        # Use the dates of these records as the keys
         self.recent_rec = {rec['date']: CityAQIRecord(rec) for key, rec in data_tmp.items()}
 
         data_tmp = data['lastMoniData']
         for i in data_tmp:
+            # Fill the dates. No 'date' key in these raw records.
             data_tmp[i].update({'date': dt_now})
         self.detailed_latest_rec = {rec['city']: CityAQIRecord(rec, cn_now) for key, rec in data_tmp.items()}
 
